@@ -450,6 +450,10 @@
           <span class="k">DRINK</span><b data-i18n="m4.t">음료·주류</b><p data-i18n="m4.d">고기와 어울리는 주류와 음료.</p><span class="go" data-i18n="m.go">메뉴판 열기 →</span>
         </a>
       </div>
+      <div id="erpMenuBoard" hidden style="margin-top:2.2rem;">
+        <div id="erpMenuTabs" style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; margin-bottom:1.5rem;"></div>
+        <div id="erpMenuGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;"></div>
+      </div>
       <div class="hours-bar rv">
         <div><small>LUNCH</small><b>11:30 – 14:00</b><span data-i18n="h.daily">매일</span></div>
         <div><small>DINNER</small><b>17:00 – 22:00</b><span data-i18n="h.daily">매일</span></div>
@@ -658,13 +662,14 @@
   }));
 
   const BC = "https://bestclubvn.netlify.app";
-  const MERCHANT_ID = new URLSearchParams(location.search).get("merchant") || "baekje_galbi";
+  const MERCHANT_ID = new URLSearchParams(location.search).get("merchant") || "1794710386";
+  const MERCHANT_ALIASES = Array.from(new Set([MERCHANT_ID, "1794710386", "baekje_galbi"]));
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const vnd = (n) => Number(n || 0).toLocaleString("vi-VN") + " VND";
   const t = (ko, vi) => (window.bkLang === "vi" ? vi : ko);
 
-  let merchant = null, coupons = [], products = [];
+  let merchant = null, coupons = [], products = [], activeMenuCategory = "ALL";
 
   function renderBt() {
     const box = $("btPolicy");
@@ -672,7 +677,7 @@
     if (!merchant || !per) { box.hidden = true; return; }
     const bal = Number(merchant.btBalance || 0);
     box.innerHTML = `<span>🎟️ <b>${esc(vnd(per))}</b> ${t("결제당 1 BT 무료 보상", "thanh toán = 1 BT thưởng miễn phí")}</span>`
-      + `<span>${t("가맹점 잔여 BT", "BT còn lại")}: <b>${esc(bal.toLocaleString())} BT</b></span>`;
+      + (bal > 0 ? `<span>${t("가맹점 잔여 BT", "BT còn lại")}: <b>${esc(bal.toLocaleString())} BT</b></span>` : "");
     box.hidden = false;
   }
 
@@ -688,30 +693,87 @@
     $("couponBlock").hidden = false;
   }
 
+  function renderErpMenuBoard() {
+    const board = $("erpMenuBoard");
+    const tabsEl = $("erpMenuTabs");
+    const gridEl = $("erpMenuGrid");
+    if (!board || !tabsEl || !gridEl) return;
+    if (!products.length) { board.hidden = true; return; }
+
+    const categories = ["ALL", ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
+    if (!categories.includes(activeMenuCategory)) activeMenuCategory = "ALL";
+
+    tabsEl.innerHTML = categories.map(cat => {
+      const isOn = cat === activeMenuCategory;
+      const label = cat === "ALL" ? t(`전체 메뉴 (${products.length})`, `Tất cả (${products.length})`) : cat;
+      return `<button type="button" data-cat="${esc(cat)}" style="padding:0.5rem 1rem; border-radius:999px; border:1px solid ${isOn ? 'var(--gold)' : 'var(--line)'}; background:${isOn ? 'var(--gold)' : 'rgba(255,255,255,0.03)'}; color:${isOn ? '#14110f' : 'var(--cream)'}; font-weight:${isOn ? '700' : '500'}; font-size:0.84rem; cursor:pointer; transition:all .2s;">${esc(label)}</button>`;
+    }).join("");
+
+    tabsEl.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeMenuCategory = btn.dataset.cat;
+        renderErpMenuBoard();
+      });
+    });
+
+    const filtered = activeMenuCategory === "ALL"
+      ? products
+      : products.filter(p => p.category === activeMenuCategory);
+
+    gridEl.innerHTML = filtered.map(p => {
+      const title = (window.bkLang === "vi" && p.product_name_vi) ? p.product_name_vi : p.product_name;
+      const subTitle = (window.bkLang === "vi" ? p.product_name : p.product_name_vi) || "";
+      const soldOut = p.sale_status === "sold_out" || Number(p.inventory) === 0;
+      const img = Array.isArray(p.images) && p.images[0]
+        ? `<img src="${esc(p.images[0])}" alt="" loading="lazy" style="width:68px; height:68px; object-fit:cover; border-radius:8px; flex-shrink:0; border:1px solid var(--line);">`
+        : "";
+      return `<div style="display:flex; gap:0.85rem; align-items:flex-start; padding:1rem; background:var(--bg-2); border:1px solid var(--line); border-radius:10px;">
+        ${img}
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+            <b style="color:var(--cream); font-size:0.95rem; line-height:1.35;">${esc(title)}</b>
+          </div>
+          ${subTitle ? `<div style="color:var(--muted); font-size:0.78rem; margin-top:0.15rem;">${esc(subTitle)}</div>` : ""}
+          ${p.description ? `<p style="color:var(--stone); font-size:0.8rem; margin:0.35rem 0 0.45rem; line-height:1.45;">${esc(p.description)}</p>` : ""}
+          <div style="color:var(--gold-2); font-weight:700; font-size:0.9rem;">${soldOut ? t("품절", "Hết hàng") : esc(vnd(p.price))}</div>
+        </div>
+      </div>`;
+    }).join("");
+
+    board.hidden = false;
+  }
+
   function renderProducts() {
     if (!products.length) { $("productBlock").hidden = true; return; }
-    $("productList").innerHTML = products.map(p => {
+    const showcase = products.slice(0, 12);
+    $("productList").innerHTML = showcase.map(p => {
       const img = Array.isArray(p.images) && p.images[0] ? `<img src="${esc(p.images[0])}" alt="" loading="lazy">` : "";
       const soldOut = p.sale_status === "sold_out" || Number(p.inventory) === 0;
-      return `<a class="card" href="${BC}/mall.html">${img}<div class="body">
-        <b>${esc(p.product_name)}</b>
+      const title = (window.bkLang === "vi" && p.product_name_vi) ? p.product_name_vi : p.product_name;
+      return `<a class="card" href="#menu">${img}<div class="body">
+        <b>${esc(title)}</b>
         <span class="meta">${soldOut ? t("품절", "Hết hàng") : esc(vnd(p.price))}</span></div></a>`;
     }).join("");
     $("productBlock").hidden = false;
   }
 
-  const renderAll = () => { renderBt(); renderCoupons(); renderProducts(); };
+  const renderAll = () => { renderBt(); renderCoupons(); renderErpMenuBoard(); renderProducts(); };
   document.addEventListener("bk-lang", renderAll);
 
   async function load() {
     const [mSnap, cSnap, pSnap] = await Promise.allSettled([
       getDoc(doc(db, "merchants", MERCHANT_ID)),
-      getDocs(query(collection(db, "coupon_campaigns"), where("issuerId", "==", MERCHANT_ID), limit(12))),
-      getDocs(query(collection(db, "merchant_products"), where("merchant_id", "==", MERCHANT_ID), where("sale_status", "==", "published"), limit(12)))
+      getDocs(query(collection(db, "coupon_campaigns"), where("issuerId", "in", MERCHANT_ALIASES), limit(12))),
+      getDocs(query(collection(db, "merchant_products"), where("merchant_id", "in", MERCHANT_ALIASES), limit(100)))
     ]);
     if (mSnap.status === "fulfilled" && mSnap.value.exists()) merchant = mSnap.value.data();
     if (cSnap.status === "fulfilled") coupons = cSnap.value.docs.map(d => d.data()).filter(c => c.status === "active");
-    if (pSnap.status === "fulfilled") products = pSnap.value.docs.map(d => d.data());
+    if (pSnap.status === "fulfilled") {
+      products = pSnap.value.docs
+        .map(d => d.data())
+        .filter(p => p.sale_status === "published")
+        .sort((a, b) => String(a.product_name || "").localeCompare(String(b.product_name || ""), "ko"));
+    }
     renderAll();
   }
   load().catch(() => { /* 연동 실패 시 정적 소개 콘텐츠만 표시 */ });
