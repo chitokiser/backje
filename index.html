@@ -187,6 +187,8 @@
 
     /* Benefits */
     .benefit { background: var(--ink-2); }
+    .bc-hub-sec { background: var(--ink-2); padding: 80px 0; }
+    .bc-hub-sec .sec-head { margin-bottom: 32px; }
     .ben-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .ben { border: 1px solid var(--line); border-radius: 12px; padding: 26px 22px; background: rgba(255,255,255,.02); }
     .ben .ico { font-size: 26px; }
@@ -294,6 +296,7 @@
       <a href="#meat" data-i18n="nav.meat">대표 부위</a>
       <a href="#menu" data-i18n="nav.menu">메뉴</a>
       <a href="#space" data-i18n="nav.space">공간</a>
+      <a href="#bestclub" data-i18n="nav.hub">BestClub</a>
       <a href="#benefit" data-i18n="nav.benefit">BestClub 혜택</a>
       <a href="#visit" data-i18n="nav.visit">오시는 길</a>
     </nav>
@@ -327,6 +330,19 @@
       </div>
     </div>
     <span class="scroll-cue">SCROLL</span>
+  </section>
+
+  <!-- BESTCLUB HUB (플랫폼 바로가기 · 공지 · 리워드 · 이벤트 — bestclubvn 공용 위젯) -->
+  <section id="bestclub" class="bc-hub-sec">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">BestClub</span>
+        <div class="rule"></div>
+        <h2 data-i18n="hub.title">BestClub 바로가기</h2>
+        <p data-i18n="hub.desc">결제, 게임, 머니 충전, 결제 QR, 내 포인트를 바로 이용하고 공지사항과 이벤트를 확인하세요.</p>
+      </div>
+      <div id="bestclubHub" data-bestclub-hub data-merchant="1794710386" data-theme="#b8893f" data-mode="dark" data-lang="ko" data-header="0"></div>
+    </div>
   </section>
 
   <!-- STORY -->
@@ -580,7 +596,8 @@
 <script>
   // ── 다국어 (KO / VI) ──
   const I18N_VI = {
-    "nav.story": "Câu chuyện", "nav.meat": "Phần thịt", "nav.menu": "Thực đơn", "nav.space": "Không gian", "nav.benefit": "Ưu đãi BestClub", "nav.visit": "Địa chỉ",
+    "nav.story": "Câu chuyện", "nav.meat": "Phần thịt", "nav.menu": "Thực đơn", "nav.space": "Không gian", "nav.benefit": "Ưu đãi BestClub", "nav.hub": "BestClub",
+    "hub.title": "Lối tắt BestClub", "hub.desc": "Thanh toán, chơi game, nạp tiền, tạo QR và xem điểm của bạn, cùng thông báo và sự kiện mới nhất.", "nav.visit": "Địa chỉ",
     "cta.reserve": "Đặt bàn", "cta.call": "Gọi đặt bàn", "cta.menu": "Xem thực đơn", "cta.map": "Xem trên Google Maps", "cta.dir": "Chỉ đường",
     "hero.title": "Chiều sâu truyền thống Hàn Quốc,<br><em>Baekje Galbi</em>",
     "hero.lead": "Bò hạng Prime và sườn ướp đặc trưng của Baekje Galbi nướng trên than hoa. Nhà hàng thịt nướng Hàn Quốc cao cấp tại Hà Nội — hương vị truyền thống với phong cách hiện đại.",
@@ -636,6 +653,16 @@
   try { saved = localStorage.getItem("bk_lang"); } catch (e) { /* 무시 */ }
   if (!saved && /^vi\b/i.test(navigator.language || "")) saved = "vi";
   if (saved === "vi") applyLang("vi");
+
+  // BestClub 허브 위젯 언어 연동
+  (function () {
+    const hub = document.getElementById("bestclubHub");
+    if (hub) hub.dataset.lang = window.bkLang;
+    document.addEventListener("bk-lang", () => {
+      if (hub) hub.dataset.lang = window.bkLang;
+      if (window.BestClubHub) window.BestClubHub.setLang(window.bkLang);
+    });
+  })();
 
   // ── 네비 배경 + 스크롤 등장 ──
   const nav = document.getElementById("nav");
@@ -778,5 +805,6 @@
   }
   load().catch(() => { /* 연동 실패 시 정적 소개 콘텐츠만 표시 */ });
 </script>
+<script src="https://bestclubvn.netlify.app/assets/js/merchant-hub-widget.js" async></script>
 </body>
 </html>
